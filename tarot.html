@@ -2,60 +2,135 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>오늘의 타로 점</title>
+    <title>타로 마스터</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f0f0f0; }
-        #tarot-btn { padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #6a5acd; color: white; border: none; border-radius: 8px; }
-        #tarot-btn:hover { background-color: #483d8b; }
-        #result-display { margin-top: 30px; font-size: 20px; line-height: 1.6; color: #333; }
+        body { font-family: 'Apple SD Gothic Neo', sans-serif; text-align: center; background-color: #2c2c34; color: #fff; padding: 40px 20px; }
+        .tarot-btn { padding: 12px 24px; font-size: 16px; cursor: pointer; background: #8e44ad; color: white; border: none; border-radius: 5px; transition: 0.3s; margin: 10px; }
+        .tarot-btn:hover { background: #9b59b6; }
+        #result-display, #one-card-result { display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; margin-top: 30px; }
+        .card-box { width: 140px; background: #3e3e4a; padding: 10px; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .card-img { width: 100%; height: 240px; border-radius: 5px; transition: transform 0.5s; border: 2px solid #555; object-fit: cover; }
+        .card-name { margin-top: 10px; font-size: 14px; color: #ddd; min-height: 40px; }
+        .section { margin-top: 60px; border-top: 1px solid #555; padding-top: 40px; }
+        input { padding: 10px; width: 280px; border-radius: 5px; border: none; margin-bottom: 10px; color: #000; }
     </style>
 </head>
 <body>
 
-    <h1>🔮 오늘의 타로 카드 🔮</h1>
-    <button id="tarot-btn" onclick="drawTarot()">운세 확인하기</button>
+    <h1>🔮 78장 풀 데크 타로 🔮</h1>
+    <button class="tarot-btn" onclick="drawTarot()">오늘의 운세 (3장)</button>
     <div id="result-display"></div>
 
-    <script>
-        function drawTarot() {
-            const majorNames = ["The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor", "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit", "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance", "The Devil", "The Tower", "The Star", "The Moon", "The Sun", "Judgement", "The World"];
-            const suits = ["Wands", "Cups", "Swords", "Pentacles"];
-            const ranks = ["Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Page", "Knight", "Queen", "King"];
+    <div class="section">
+        <h3>궁금한 점을 물어보세요</h3>
+        <input type="text" id="user-question" placeholder="질문을 입력하세요...">
+        <br>
+        <button class="tarot-btn" style="background:#27ae60" onclick="askTarot()">조언 카드 뽑기</button>
+        <div id="one-card-result"></div>
+    </div>
 
-            let fullDeck = [];
-            majorNames.forEach((name, index) => {
-                fullDeck.push({ id: `major-${index}`, name: name });
+    <script>
+        let fullDeck = [];
+        const primaryBase = "https://www.sacred-texts.com/tarot/pkt/img/";
+        const backupBase = "https://raw.githubusercontent.com/ekelen/tarot-api/master/static/cards/";
+        const wikiBase = "https://upload.wikimedia.org/wikipedia/commons/";
+
+        function initDeck() {
+            const majorNames = ["The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor", "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit", "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance", "The Devil", "The Tower", "The Star", "The Moon", "The Sun", "Judgement", "The World"];
+            const suits = [{ name: "Wands", id: "wa" }, { name: "Cups", id: "cu" }, { name: "Swords", id: "sw" }, { name: "Pentacles", id: "pe" }];
+            const ranks = ["ac", "02", "03", "04", "05", "06", "07", "08", "09", "10", "pa", "kn", "qu", "ki"];
+            const rankNames = ["Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Page", "Knight", "Queen", "King"];
+
+            fullDeck = [];
+            majorNames.forEach((name, i) => {
+                fullDeck.push({ id: String(i).padStart(2, '0'), name: name, type: 'major' });
             });
             suits.forEach(suit => {
-                ranks.forEach(rank => {
-                    fullDeck.push({ id: `minor-${suit}-${rank}`, name: `${rank} of ${suit}` });
+                ranks.forEach((rank, rIdx) => {
+                    fullDeck.push({ id: suit.id + rank, name: `${rankNames[rIdx]} of ${suit.name}`, type: 'minor', suit: suit.id.charAt(0) });
                 });
             });
+        }
 
-            let selectedTarot = [];
-            while (selectedTarot.length < 3) {
-                let randomIndex = Math.floor(Math.random() * fullDeck.length);
-                let isUpright = Math.random() > 0.5;
-                
-                if (!selectedTarot.some(item => item.card.id === fullDeck[randomIndex].id)) {
-                    selectedTarot.push({
-                        card: fullDeck[randomIndex],
-                        direction: isUpright ? "정방향" : "역방향"
-                    });
+        initDeck();
+
+        function handleImgError(img, cardId, type, suit) {
+            const step = parseInt(img.getAttribute('data-retry-step') || '0');
+            
+            if (step === 0) {
+                img.setAttribute('data-retry-step', '1');
+                let backupId = cardId;
+                if (type === 'major') {
+                    backupId = "m" + cardId;
+                } else {
+                    let r = cardId.substring(2);
+                    const map = {"ac":"01","pa":"11","kn":"12","qu":"13","ki":"14"};
+                    backupId = suit + (map[r] || r);
                 }
+                img.src = `${backupBase}${backupId}.jpg`;
+            } 
+            else if (step === 1) {
+                img.setAttribute('data-retry-step', '2');
+                if (type === 'major') {
+                    const wikiMajor = {
+                        "00":"9/90/RWS_Tarot_00_Fool.jpg", "01":"d/de/RWS_Tarot_01_Magician.jpg", "02":"8/88/RWS_Tarot_02_High_Priestess.jpg",
+                        "03":"a/af/RWS_Tarot_03_Empress.jpg", "04":"c/c3/RWS_Tarot_04_Emperor.jpg", "05":"8/8d/RWS_Tarot_05_Hierophant.jpg",
+                        "06":"3/3a/RWS_Tarot_06_Lovers.jpg", "07":"9/9b/RWS_Tarot_07_Chariot.jpg", "08":"f/f0/RWS_Tarot_08_Strength.jpg",
+                        "09":"4/4d/RWS_Tarot_09_Hermit.jpg", "10":"3/3c/RWS_Tarot_10_Wheel_of_Fortune.jpg", "11":"e/e0/RWS_Tarot_11_Justice.jpg",
+                        "12":"2/2b/RWS_Tarot_12_Hanged_Man.jpg", "13":"d/d7/RWS_Tarot_13_Death.jpg", "14":"f/f8/RWS_Tarot_14_Temperance.jpg",
+                        "15":"5/55/RWS_Tarot_15_Devil.jpg", "16":"5/53/RWS_Tarot_16_Tower.jpg", "17":"d/db/RWS_Tarot_17_Star.jpg",
+                        "18":"7/7f/RWS_Tarot_18_Moon.jpg", "19":"1/17/RWS_Tarot_19_Sun.jpg", "20":"d/dd/RWS_Tarot_20_Judgement.jpg", "21":"f/ff/RWS_Tarot_21_World.jpg"
+                    };
+                    img.src = wikiBase + (wikiMajor[cardId] || "");
+                } else {
+                    img.src = `https://via.placeholder.com/140x240?text=${cardId}`;
+                }
+            } 
+            else {
+                img.src = "https://via.placeholder.com/140x240?text=Card+Error";
+                img.onerror = null;
             }
+        }
 
-            const steps = ["과거", "현재", "미래"];
-            let resultHTML = "";
-            let alertMessage = "🔮 오늘의 타로 결과입니다 🔮\n\n";
+        function createCardHTML(res, label = "") {
+            const rotation = res.direction === "역방향" ? "rotate(180deg)" : "rotate(0deg)";
+            return `
+                <div class="card-box">
+                    <img src="${primaryBase}${res.card.id}.jpg" 
+                         class="card-img" 
+                         style="transform: ${rotation}" 
+                         onerror="handleImgError(this, '${res.card.id}', '${res.card.type}', '${res.card.suit}')">
+                    <div class="card-name">
+                        ${label ? `<strong>${label}</strong><br>` : ""}
+                        ${res.card.name}<br>
+                        <small>(${res.direction})</small>
+                    </div>
+                </div>
+            `;
+        }
 
-            selectedTarot.forEach((res, i) => {
-                resultHTML += `<p><strong>${steps[i]}</strong>: ${res.card.name} (${res.direction})</p>`;
-                alertMessage += `${steps[i]}: ${res.card.name} (${res.direction})\n`;
-            });
+        function drawTarot() {
+            let selected = [];
+            let tempDeck = [...fullDeck];
+            for (let i = 0; i < 3; i++) {
+                let idx = Math.floor(Math.random() * tempDeck.length);
+                selected.push({
+                    card: tempDeck.splice(idx, 1)[0],
+                    direction: Math.random() > 0.5 ? "정방향" : "역방향"
+                });
+            }
+            const labels = ["과거", "현재", "미래"];
+            document.getElementById('result-display').innerHTML = selected.map((s, i) => createCardHTML(s, labels[i])).join('');
+        }
 
-            document.getElementById('result-display').innerHTML = resultHTML;
-            alert(alertMessage);
+        function askTarot() {
+            const q = document.getElementById('user-question').value;
+            if (!q) return alert("질문을 입력해주세요.");
+            const res = {
+                card: fullDeck[Math.floor(Math.random() * fullDeck.length)],
+                direction: Math.random() > 0.5 ? "정방향" : "역방향"
+            };
+            document.getElementById('one-card-result').innerHTML = createCardHTML(res, `질문: ${q}`);
         }
     </script>
 </body>
