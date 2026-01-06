@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>오늘의 타로 점</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f0f0f0; }
+        #tarot-btn { padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #6a5acd; color: white; border: none; border-radius: 8px; }
+        #tarot-btn:hover { background-color: #483d8b; }
+        #result-display { margin-top: 30px; font-size: 20px; line-height: 1.6; color: #333; }
+    </style>
+</head>
+<body>
+
+    <h1>🔮 오늘의 타로 카드 🔮</h1>
+    <button id="tarot-btn" onclick="drawTarot()">운세 확인하기</button>
+    <div id="result-display"></div>
+
+    <script>
+        function drawTarot() {
+            const majorNames = ["The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor", "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit", "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance", "The Devil", "The Tower", "The Star", "The Moon", "The Sun", "Judgement", "The World"];
+            const suits = ["Wands", "Cups", "Swords", "Pentacles"];
+            const ranks = ["Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Page", "Knight", "Queen", "King"];
+
+            let fullDeck = [];
+            majorNames.forEach((name, index) => {
+                fullDeck.push({ id: `major-${index}`, name: name });
+            });
+            suits.forEach(suit => {
+                ranks.forEach(rank => {
+                    fullDeck.push({ id: `minor-${suit}-${rank}`, name: `${rank} of ${suit}` });
+                });
+            });
+
+            let selectedTarot = [];
+            while (selectedTarot.length < 3) {
+                let randomIndex = Math.floor(Math.random() * fullDeck.length);
+                let isUpright = Math.random() > 0.5;
+                
+                if (!selectedTarot.some(item => item.card.id === fullDeck[randomIndex].id)) {
+                    selectedTarot.push({
+                        card: fullDeck[randomIndex],
+                        direction: isUpright ? "정방향" : "역방향"
+                    });
+                }
+            }
+
+            const steps = ["과거", "현재", "미래"];
+            let resultHTML = "";
+            let alertMessage = "🔮 오늘의 타로 결과입니다 🔮\n\n";
+
+            selectedTarot.forEach((res, i) => {
+                resultHTML += `<p><strong>${steps[i]}</strong>: ${res.card.name} (${res.direction})</p>`;
+                alertMessage += `${steps[i]}: ${res.card.name} (${res.direction})\n`;
+            });
+
+            document.getElementById('result-display').innerHTML = resultHTML;
+            alert(alertMessage);
+        }
+    </script>
+</body>
+</html>
