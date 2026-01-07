@@ -16,7 +16,6 @@
         #status { margin-top: 15px; font-size: 14px; color: #666; font-weight: bold; }
         #loading { display: block; color: #3498db; font-weight: bold; margin-bottom: 10px; }
     </style>
-
     <py-config>
         packages = ["pandas", "openpyxl"]
     </py-config>
@@ -25,11 +24,9 @@
 
 <div class="container">
     <h1>🍀 로또 분석 시스템 🍀</h1>
-    <div id="loading">🐍 파이썬 환경 및 데이터 준비 중...</div>
+    <div id="loading">🐍 파이썬 환경 준비 중...</div>
     <p>최신 당첨 통계 데이터를 기반으로 번호를 추천합니다.</p>
-    
     <button id="generate-btn" class="btn" py-click="auto_load_and_generate">번호 생성하기</button>
-    
     <div id="status"></div>
     <div id="result"></div>
 </div>
@@ -47,17 +44,16 @@ document.querySelector("#loading").style.display = "none"
 async def auto_load_and_generate(event):
     status_div = document.querySelector("#status")
     result_div = document.querySelector("#result")
-    
-    status_div.innerHTML = "⏳ 서버에서 엑셀 데이터를 가져오는 중..."
+    status_div.innerHTML = "⏳ 엑셀 데이터를 가져오는 중..."
     result_div.innerHTML = ""
     
     try:
-        response = await fetch("./lotto_prob.xlsx")
+        response = await fetch(f"./lotto_prob.xlsx?t={random.random()}")
         
         if not response.ok:
-            raise Exception(f"파일을 찾을 수 없습니다. (상태: {response.status})")
+            raise Exception(f"파일을 찾을 수 없습니다. (파일명: lotto_prob.xlsx)")
             
-        array_buffer = await response.array_buffer()
+        array_buffer = await response.arrayBuffer()
         file_bytes = Uint8Array.new(array_buffer).to_bytes()
         
         with io.BytesIO(file_bytes) as f:
@@ -67,15 +63,13 @@ async def auto_load_and_generate(event):
         cold = df_prob.nlargest(15, '출현 순위')['번호'].tolist()
         
         final_html = "<h3>✨ 분석 추천 조합 ✨</h3>"
-        
         for i in range(5):
             h = random.sample(hot, 2)
-            remaining_cold = [n for n in cold if n not in h]
-            c = random.sample(remaining_cold, 2)
+            rem_cold = [n for n in cold if n not in h]
+            c = random.sample(rem_cold, 2)
             used = h + c
-            remaining_all = [n for n in range(1, 46) if n not in used]
-            r = random.sample(remaining_all, 2)
-            
+            rem_all = [n for n in range(1, 46) if n not in used]
+            r = random.sample(rem_all, 2)
             res = sorted(h + c + r)
             balls = "".join([f'<span class="ball">{n}</span>' for n in res])
             final_html += f"<div class='ball-container'>{balls}</div>"
@@ -85,8 +79,6 @@ async def auto_load_and_generate(event):
         
     except Exception as e:
         status_div.innerHTML = f"<b style='color:red;'>오류 발생: {str(e)}</b>"
-        print(f"Error detail: {e}")
-
 </script>
 </body>
 </html>
