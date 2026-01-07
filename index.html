@@ -51,7 +51,7 @@ async def auto_load_and_generate(event):
     result_div.innerHTML = ""
     
     try:
-        url = "./data.xlsx" 
+        url = "./로또 확률.xlsx" 
         content = open_url(url)
         
         with io.BytesIO(content.read()) as f:
