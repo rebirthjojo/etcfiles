@@ -39,7 +39,7 @@ import pandas as pd
 import random
 import io
 from pyscript import document
-from pyodide.http import pyfetch
+from js import fetch, Uint8Array
 import asyncio
 
 document.querySelector("#loading").style.display = "none"
@@ -48,20 +48,20 @@ async def auto_load_and_generate(event):
     status_div = document.querySelector("#status")
     result_div = document.querySelector("#result")
     
-    status_div.innerHTML = "⏳ 서버에서 데이터를 분석 중입니다..."
+    status_div.innerHTML = "⏳ 서버에서 엑셀 데이터를 가져오는 중..."
     result_div.innerHTML = ""
     
     try:
-        url = "./lotto_prob.xlsx"
-        response = await pyfetch(url)
+        response = await fetch("./lotto_prob.xlsx")
         
         if not response.ok:
-            raise Exception(f"파일을 찾을 수 없습니다. (상태 코드: {response.status})")
+            raise Exception(f"파일을 찾을 수 없습니다. (상태: {response.status})")
             
-        file_bytes = await response.bytes()
+        array_buffer = await response.array_buffer()
+        file_bytes = Uint8Array.new(array_buffer).to_bytes()
         
         with io.BytesIO(file_bytes) as f:
-            df_prob = pd.read_excel(f, sheet_name='확률')
+            df_prob = pd.read_excel(f, engine='openpyxl', sheet_name='확률')
         
         hot = df_prob.nsmallest(15, '출현 순위')['번호'].tolist()
         cold = df_prob.nlargest(15, '출현 순위')['번호'].tolist()
