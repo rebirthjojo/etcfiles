@@ -47,14 +47,16 @@ async def auto_load_and_generate(event):
     status_div = document.querySelector("#status")
     result_div = document.querySelector("#result")
     
-    status_div.innerHTML = "⏳ 서버에서 최신 데이터를 가져오는 중..."
+    status_div.innerHTML = "⏳ 서버에서 데이터를 분석 중입니다..."
     result_div.innerHTML = ""
     
     try:
-        url = "./로또 확률.xlsx" 
-        content = open_url(url)
+        url = "./lotto_prob.xlsx"
         
-        with io.BytesIO(content.read()) as f:
+        response = open_url(url)
+        file_bytes = response.to_bytes()
+        
+        with io.BytesIO(file_bytes) as f:
             df_prob = pd.read_excel(f, sheet_name='확률')
         
         hot = df_prob.nsmallest(15, '출현 순위')['번호'].tolist()
@@ -75,10 +77,11 @@ async def auto_load_and_generate(event):
             final_html += f"<div class='ball-container'>{balls}</div>"
             
         result_div.innerHTML = final_html
-        status_div.innerHTML = "✅ 분석 및 생성 완료!"
+        status_div.innerHTML = "✅ 분석 완료!"
         
     except Exception as e:
-        status_div.innerHTML = f"<b style='color:red;'>오류 발생: {str(e)}</b><br><small>data.xlsx 파일이 서버에 있는지 확인해주세요.</small>"
+        status_div.innerHTML = f"<b style='color:red;'>오류 발생: {str(e)}</b>"
+        print(f"Error detail: {e}")
 
 </script>
 </body>
