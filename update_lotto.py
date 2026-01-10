@@ -41,17 +41,19 @@ def update_excel():
         soup = BeautifulSoup(res.text, 'html.parser')
         balls = soup.select('.ball')
 
-        if balls and len(balls) >= 6:
-            nums = [int(b.text) for b in balls[:6]]
+        if balls and len(balls) >= 7:
+            # 보너스 번호 포함 7개 수집
+            nums = [int(b.text) for b in balls[:7]]
             
-            # 3. 데이터 기록 (서식이 있는 줄이더라도 값을 덮어씁니다)
+            # 3. 데이터 기록 (A열: 회차, B~G열: 당첨번호, H열: 보너스번호)
             write_row = real_last_row + 1
             ws.cell(row=write_row, column=1, value=target_drw)
             for i, num in enumerate(nums):
+                # i가 0~6까지 돌면서 B, C, D, E, F, G, H열에 순서대로 기록합니다.
                 ws.cell(row=write_row, column=i + 2, value=num)
             
             wb.save(file_name)
-            print(f"성공: {target_drw}회차를 {write_row}행에 기록했습니다.")
+            print(f"성공: {target_drw}회차 (보너스 포함 7개) 저장 완료!")
         else:
             print(f"결과: {target_drw}회차 결과가 아직 없습니다.")
 
@@ -60,3 +62,4 @@ def update_excel():
 
 if __name__ == "__main__":
     update_excel()
+
