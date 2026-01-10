@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests openpyxl pandas
+          pip install requests openpyxl pandas beautifulsoup4
 
       - name: Run update script
         run: python update_lotto.py
