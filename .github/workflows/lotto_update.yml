@@ -2,8 +2,8 @@ name: Weekly Lotto Update
 
 on:
   schedule:
-    - cron: '30 12 * * 6' # 매주 토요일 UTC 12:30 (한국시간 21:30)
-  workflow_dispatch: # 수동 실행 버튼 생성
+    - cron: '30 12 * * 6'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
@@ -31,14 +31,10 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          echo "Last run: $(date)" > last_run.txt
-          
-          git add lotto_prob.xlsx last_run.txt
-          
+          git add lotto_prob.xlsx
           if [ -n "$(git status --porcelain)" ]; then
             git commit -m "Update lotto data ($(date +'%Y-%m-%d %H:%M'))"
             git push origin main
           else
-            echo "여전히 변경사항이 없다고 나옵니다."
+            echo "No changes to commit"
           fi
