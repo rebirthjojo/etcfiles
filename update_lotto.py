@@ -5,37 +5,32 @@ import os
 
 def update_excel():
     file_name = "lotto_prob.xlsx"
-    if not os.path.exists(file_name): return
+    if not os.path.exists(file_name):
+        print("파일을 찾을 수 없습니다.")
+        return
 
     try:
-        # data_only=False로 수식 보호
+        # data_only=False: 2번째 시트의 수식을 그대로 보존합니다.
         wb = load_workbook(file_name, data_only=False)
         ws = wb['원본']
         
-        # 1. '진짜' 마지막 회차와 행 번호 찾기
-        # A열을 2000행까지 훑어서 가장 큰 회차 숫자와 그 위치를 찾습니다.
+        # 1. 서식을 무시하고 "숫자"가 있는 진짜 마지막 행 찾기
+        real_last_row = 1
         last_drw = 0
-        last_row_idx = 0
         
-        # 1행(헤더) 제외하고 2행부터 검사
-        for i in range(2, 2000):
+        # A열을 위에서부터 훑으며 마지막 '정수'를 찾습니다.
+        for i in range(1, ws.max_row + 1):
             val = ws.cell(row=i, column=1).value
             if isinstance(val, int):
-                if val > last_drw:
-                    last_drw = val
-                    last_row_idx = i
-            # 너무 긴 빈 구간이 나오면 중단 (성능 최적화)
-            if val is None and i > last_row_idx + 10:
-                break
+                real_last_row = i
+                last_drw = val
         
+        # 만약 숫자를 하나도 못 찾았다면 (헤더만 있는 경우 등)
         if last_drw == 0:
-            print("회차 데이터를 찾을 수 없어 기본값(1205)을 사용합니다.")
-            last_drw = 1205
-            # 데이터가 하나도 없을 경우 대비 (보통 헤더 밑 2행부터 시작)
-            last_row_idx = 1 
-
+            last_drw = 1205 # 기본값 설정
+            
         target_drw = last_drw + 1
-        print(f"현재 엑셀상 최신 회차: {last_drw} (위치: {last_row_idx}행)")
+        print(f"포착된 최신 회차: {last_drw} (행 번호: {real_last_row})")
         print(f"네이버 수집 목표: {target_drw}")
 
         # 2. 네이버 크롤링
@@ -49,20 +44,19 @@ def update_excel():
         if balls and len(balls) >= 6:
             nums = [int(b.text) for b in balls[:6]]
             
-            # 3. 마지막 행 바로 다음 줄에 기록
-            new_row = last_row_idx + 1
-            ws.cell(row=new_row, column=1, value=target_drw)
+            # 3. 데이터 기록 (서식이 있는 줄이더라도 값을 덮어씁니다)
+            write_row = real_last_row + 1
+            ws.cell(row=write_row, column=1, value=target_drw)
             for i, num in enumerate(nums):
-                ws.cell(row=new_row, column=i + 2, value=num)
+                ws.cell(row=write_row, column=i + 2, value=num)
             
             wb.save(file_name)
-            print(f"성공: {target_drw}회차를 {new_row}행에 기록했습니다.")
+            print(f"성공: {target_drw}회차를 {write_row}행에 기록했습니다.")
         else:
-            # 아직 당첨 번호가 안 떴을 경우 (토요일 저녁 등)
-            print(f"결과: {target_drw}회차 결과가 아직 네이버에 없습니다. (수집 중단)")
+            print(f"결과: {target_drw}회차 결과가 아직 없습니다.")
 
     except Exception as e:
-        print(f"에러 발생: {e}")
+        print(f"실행 중 에러 발생: {e}")
 
 if __name__ == "__main__":
     update_excel()
