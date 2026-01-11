@@ -8,12 +8,23 @@
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
     <style>
         body { font-family: 'Apple SD Gothic Neo', sans-serif; text-align: center; background-color: #f0f2f5; padding: 40px; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .btn { padding: 15px 30px; font-size: 18px; cursor: pointer; background: #3498db; color: white; border: none; border-radius: 10px; margin-top: 20px; font-weight: bold; }
-        .btn:hover { background: #2980b9; }
-        .ball-container { margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .ball { display: inline-block; width: 40px; height: 40px; line-height: 40px; border-radius: 50%; background: #f1c40f; color: black; font-weight: bold; margin: 5px; font-size: 16px; border: 2px solid #e67e22; }
-        #status { margin-top: 15px; font-size: 14px; color: #666; font-weight: bold; }
+        .container { max-width: 650px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .btn { padding: 15px 30px; font-size: 18px; cursor: pointer; background: #3498db; color: white; border: none; border-radius: 10px; margin-top: 20px; font-weight: bold; transition: 0.3s; }
+        .btn:hover { background: #2980b9; transform: translateY(-2px); }
+        
+        /* 분석 결과 스타일 */
+        .ball-container { margin-top: 15px; background: #fafafa; padding: 15px; border-radius: 15px; display: flex; justify-content: center; gap: 8px; }
+        .ball { display: inline-block; width: 42px; height: 42px; line-height: 42px; border-radius: 50%; color: white; font-weight: bold; font-size: 16px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+        
+        /* 핫/쿨/미들 색상 구분 */
+        .hot { background: radial-gradient(circle at 30% 30%, #ff5f6d, #ff3131); border: 1px solid #d32f2f; }
+        .mid { background: radial-gradient(circle at 30% 30%, #fbc531, #e1b12c); color: #2f3542; border: 1px solid #c29924; }
+        .cold { background: radial-gradient(circle at 30% 30%, #448aff, #2979ff); border: 1px solid #1c54b2; }
+        
+        .legend { margin-top: 20px; font-size: 12px; color: #777; display: flex; justify-content: center; gap: 15px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        
+        #status { margin-top: 15px; font-size: 14px; color: #3498db; font-weight: bold; }
         #loading { display: block; color: #3498db; font-weight: bold; margin-bottom: 10px; }
     </style>
     <py-config>
@@ -23,12 +34,20 @@
 <body>
 
 <div class="container">
-    <h1>🍀 로또 분석 시스템 🍀</h1>
+    <h1>🍀 로또 경향성 분석 시스템 🍀</h1>
     <div id="loading">🐍 파이썬 환경 준비 중...</div>
-    <p>최신 당첨 통계 데이터를 기반으로 번호를 추천합니다.</p>
-    <button id="generate-btn" class="btn" py-click="auto_load_and_generate">번호 생성하기</button>
+    <p>상위 20위(HOT)와 하위 10위(COLD) 데이터를 반영한 추천</p>
+    
+    <button id="generate-btn" class="btn" py-click="auto_load_and_generate">데이터 분석 및 번호 생성</button>
+    
     <div id="status"></div>
     <div id="result"></div>
+
+    <div class="legend">
+        <span><span class="dot" style="background:#ff3131"></span>핫넘버(1~20위)</span>
+        <span><span class="dot" style="background:#fbc531"></span>미들(21~35위)</span>
+        <span><span class="dot" style="background:#2979ff"></span>쿨넘버(36~45위)</span>
+    </div>
 </div>
 
 <script type="py">
@@ -37,49 +56,67 @@ import random
 import io
 from pyscript import document
 from js import fetch, Uint8Array
-import asyncio
 
+# 로딩 메시지 숨기기
 document.querySelector("#loading").style.display = "none"
 
 async def auto_load_and_generate(event):
     status_div = document.querySelector("#status")
     result_div = document.querySelector("#result")
-    status_div.innerHTML = "⏳ 엑셀 데이터를 가져오는 중..."
-    result_div.innerHTML = ""
+    status_div.innerHTML = "⏳ 엑셀 분석 중..."
     
     try:
+        # 캐시 방지를 위한 타임스탬프 추가
         response = await fetch(f"./lotto_prob.xlsx?t={random.random()}")
         
         if not response.ok:
-            raise Exception(f"파일을 찾을 수 없습니다. (파일명: lotto_prob.xlsx)")
+            raise Exception("lotto_prob.xlsx 파일을 찾을 수 없습니다.")
             
         array_buffer = await response.arrayBuffer()
         file_bytes = Uint8Array.new(array_buffer).to_bytes()
         
         with io.BytesIO(file_bytes) as f:
+            # '확률' 탭 읽기 (마침표 참조 대신 표준 시트명 사용)
             df_prob = pd.read_excel(f, engine='openpyxl', sheet_name='확률')
         
-        hot = df_prob.nsmallest(15, '출현 순위')['번호'].tolist()
-        cold = df_prob.nlargest(15, '출현 순위')['번호'].tolist()
+        # 사용자 기준 반영: 상위 20위(Hot), 하위 10위(Cold)
+        hot_list = df_prob.nsmallest(20, '출현 순위')['번호'].tolist()
+        cold_list = df_prob.nlargest(10, '출현 순위')['번호'].tolist()
         
-        final_html = "<h3>✨ 분석 추천 조합 ✨</h3>"
-        for i in range(5):
-            h = random.sample(hot, 3)
-            rem_cold = [n for n in cold if n not in h]
-            c = random.sample(rem_cold, 1)
-            used = h + c
-            rem_all = [n for n in range(1, 46) if n not in used]
-            r = random.sample(rem_all, 2)
-            res = sorted(h + c + r)
-            balls = "".join([f'<span class="ball">{n}</span>' for n in res])
-            final_html += f"<div class='ball-container'>{balls}</div>"
+        final_html = "<h3>✨ 경향성 반영 추천 조합 ✨</h3>"
+        
+        for _ in range(5):
+            # 로직: 핫(3~4개) + 쿨(1개) + 나머지 채움
+            h_count = random.choice([3, 4])
+            h_pick = random.sample(hot_list, h_count)
+            
+            # 쿨넘버 1개 (중복 제거)
+            available_cold = [n for n in cold_list if n not in h_pick]
+            c_pick = random.sample(available_cold, 1)
+            
+            # 6개 채우기
+            current_pick = h_pick + c_pick
+            remaining_all = [n for n in range(1, 46) if n not in current_pick]
+            r_pick = random.sample(remaining_all, 6 - len(current_pick))
+            
+            final_numbers = sorted(current_pick + r_pick)
+            
+            # 번호별 색상 클래스 부여
+            ball_html = ""
+            for n in final_numbers:
+                cls = "mid"
+                if n in hot_list: cls = "hot"
+                elif n in cold_list: cls = "cold"
+                ball_html += f'<span class="ball {cls}">{n}</span>'
+            
+            final_html += f"<div class='ball-container'>{ball_html}</div>"
             
         result_div.innerHTML = final_html
-        status_div.innerHTML = "✅ 분석 완료!"
+        status_div.innerHTML = "✅ 분석 완료! (경향성 가중치 적용됨)"
         
     except Exception as e:
-        status_div.innerHTML = f"<b style='color:red;'>오류 발생: {str(e)}</b>"
+        status_div.innerHTML = f"<b style='color:red;'>오류: {str(e)}</b>"
 </script>
-</body>
 
+</body>
 </html>
