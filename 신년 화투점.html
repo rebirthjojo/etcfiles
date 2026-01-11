@@ -6,51 +6,47 @@
     <style>
         :root { --h-red: #cc0000; --h-gold: #b8860b; --bg-main: #ffffff; }
         body { background: var(--bg-main); color: #333; margin: 0; padding: 10px; font-family: 'Malgun Gothic', sans-serif; text-align: center; }
-        
-        /* 그리드 및 슬롯 설정 */
         .slot-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; padding: 15px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; max-width: 1250px; margin: 0 auto; }
         .slot { display: flex; flex-direction: column; gap: 8px; background: #ffffff; border: 1px solid #e9ecef; border-radius: 4px; padding-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .slot-header { background: var(--h-red); color: #fff; padding: 6px 0; font-weight: bold; font-size: 13px; border-radius: 4px 4px 0 0; }
-        
-        /* 카드 배치 및 디자인 */
         .card-placeholder { width: 64px; height: 102px; margin: 0 auto; border: 1px dashed #ced4da; border-radius: 4px; position: relative; }
-        .card { width: 100%; height: 100%; border: 2px solid #333; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; color: #000; background-color: #fff; position: absolute; transition: all 0.4s ease; z-index: 5; line-height: 1.4; box-sizing: border-box; }
-        
-        /* 위계별 테두리 포인트 */
+        .card { width: 100%; height: 100%; border: 2px solid #333; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; font-size: 11px; color: #000; background-color: #fff; position: absolute; transition: all 0.4s ease; z-index: 5; box-sizing: border-box; }
         .rank-광 { border: 2.5px solid #ffbb00; background: #fffdf0; } 
         .rank-열끗 { border: 2.5px solid #d4af37; }
         .rank-띠 { border: 2.5px solid #0055ff; }
         .rank-피 { border: 1.5px solid #888; }
-        
         .card.back { background: var(--h-red); background-image: repeating-linear-gradient(45deg, #b30000, #b30000 3px, #cc0000 3px, #cc0000 6px); color: transparent; border: 1px solid #800; }
         .card.mismatch { transform: rotate(90deg) scale(0.85); border: 2px solid #adb5bd; opacity: 0.6; background: #f1f3f5; z-index: 1; }
-        .moving { z-index: 1000 !important; transform: scale(1.1) translateY(-8px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }
-
-        /* 기록창 디자인 */
-        #logContent { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 1000px; margin: 30px auto; background: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #dee2e6; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        .log-entry { color: #495057; font-size: 14px; text-align: left; padding: 10px 15px; background: #f8f9fa; border-radius: 6px; border-left: 5px solid var(--h-red); }
-        .log-entry b { color: var(--h-red); }
-        
-        button { background: var(--h-red); color: #fff; border: none; padding: 14px 60px; font-size: 18px; font-weight: bold; cursor: pointer; margin: 20px 0; border-radius: 30px; box-shadow: 0 4px 15px rgba(204, 0, 0, 0.3); transition: transform 0.2s; }
-        button:active { transform: scale(0.98); }
+        #logContent { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 1100px; margin: 30px auto; background: #ffffff; padding: 20px; border-radius: 12px; border: 1px solid #dee2e6; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .log-entry { color: #495057; font-size: 14px; text-align: left; padding: 12px 15px; background: #f8f9fa; border-radius: 6px; border-left: 5px solid var(--h-red); line-height: 1.5; }
+        .log-entry.first { border-left-color: gold; background: #fffdf0; grid-column: span 3; font-size: 16px; margin-bottom: 10px; }
+        button { background: var(--h-red); color: #fff; border: none; padding: 14px 60px; font-size: 18px; font-weight: bold; cursor: pointer; margin: 20px 0; border-radius: 30px; box-shadow: 0 4px 15px rgba(204, 0, 0, 0.3); }
     </style>
 </head>
 <body>
     <button onclick="initGame()">신년 운세 보기</button>
     <div id="status" style="margin-bottom:20px; color: #333; font-weight:bold; font-size: 22px; height: 30px;"></div>
-    
     <div class="slot-grid" id="slotGrid"></div>
     <div id="logContent"></div>
 
 <script>
 const MONTH_NAMES = ["", "송학", "매조", "벚꽃", "흑싸리", "난초", "모란", "홍싸리", "공산", "국준", "단풍", "오동", "비"];
+const FORTUNE_TEXT = {
+    1: "기쁜 소식이나 반가운 손님이 찾아옵니다.", 2: "그리운 님을 만나거나 연애운이 따릅니다.", 
+    3: "새로운 곳으로 여행을 가거나 나들이할 일이 생깁니다.", 4: "약간의 고생이 따를 수 있으나 참으면 복이 옵니다.", 
+    5: "국수 먹을 일(경사)이 생기거나 좋은 인연을 맺습니다.", 6: "집안에 화목한 웃음꽃이 피고 기쁜 일이 생깁니다.", 
+    7: "생각지도 못한 곳에서 횡재수나 재물이 들어옵니다.", 8: "밤하늘의 달처럼 명예가 높아지고 이름이 알려집니다.", 
+    9: "사람들과 술잔을 나누며 즐거운 대인관계를 맺습니다.", 10: "사소한 걱정거리가 생길 수 있으니 입조심을 하세요.", 
+    11: "큰 돈이 들어오거나 하는 일이 크게 번창합니다.", 12: "귀한 손님이 오거나 큰 변화가 찾아오는 운세입니다."
+};
 
 function getCardInfo(month, idx) {
-    if (month === 11) {
+    if (month === 11) { // 오동 특수 위계: 광, 쌍피, 피, 피
         if (idx === 0) return { type: '광', name: '똥광' };
         if (idx === 1) return { type: '피', name: '쌍피' };
         return { type: '피', name: '피' };
     }
+    // 광 > 열 > 띠 > 쌍피 > 피 위계
     let kwang = (month===1)?'일광':(month===3)?'삼광':(month===8)?'팔광':(month===12)?'비광':null;
     let yeol = (month===2)?'매조열':(month===4)?'흑싸리열':(month===5)?'난초열':(month===6)?'모란열':(month===7)?'홍싸리열':(month===8)?'고도리':(month===9)?'국준열':(month===10)?'단풍열':(month===12)?'비열끗':null;
     let ribbon = [1,2,3].includes(month)?'홍단':[4,5,7].includes(month)?'초단':[6,9,10].includes(month)?'청단':(month===12)?'비띠':[8].includes(month)?'띠':null;
@@ -80,7 +76,7 @@ function createUI() {
 async function initGame() {
     createUI(); finishOrder = []; isGameOver = false;
     document.getElementById('logContent').innerHTML = '';
-    document.getElementById('status').innerText = "운세를 시작합니다.";
+    document.getElementById('status').innerText = "패를 돌리고 있습니다...";
     let deck = [];
     for (let m = 1; m <= 12; m++) {
         for (let r = 0; r < 4; r++) {
@@ -101,18 +97,12 @@ async function initGame() {
     await useDecemberChance();
 }
 
-async function useDecemberChance() {
-    const decBacks = document.querySelectorAll('#slot-12 .card.back');
-    if (decBacks.length > 0) await moveCard(window[decBacks[0].id]);
-    else await revealAllRemaining();
-}
-
 async function moveCard(cardData) {
     if (isGameOver) return;
     const el = document.getElementById(cardData.id);
     cardData.up = true;
     el.classList.remove('back');
-    el.classList.add(`rank-${cardData.type}`, 'moving');
+    el.classList.add(`rank-${cardData.type}`);
     el.innerHTML = `<div style="font-size:9px; color:#666;">${cardData.m}월</div><div>${cardData.name}</div>`;
     const targetPlaceholder = document.getElementById(`p-${cardData.m}-${cardData.r}`);
     const bumpedEl = targetPlaceholder.querySelector('.card');
@@ -127,14 +117,19 @@ async function moveCard(cardData) {
         }
     }, 20);
 
-    await new Promise(r => setTimeout(r, 500));
-    el.classList.remove('moving');
+    await new Promise(r => setTimeout(r, 450));
     if (bumpedData && !bumpedData.up) await moveCard(bumpedData);
     else {
         const decBacks = document.querySelectorAll('#slot-12 .card.back');
-        if (decBacks.length > 0) await useDecemberChance();
+        if (decBacks.length > 0) await moveCard(window[decBacks[0].id]);
         else await revealAllRemaining();
     }
+}
+
+async function useDecemberChance() {
+    const decBacks = document.querySelectorAll('#slot-12 .card.back');
+    if (decBacks.length > 0) await moveCard(window[decBacks[0].id]);
+    else await revealAllRemaining();
 }
 
 async function revealAllRemaining() {
@@ -142,15 +137,12 @@ async function revealAllRemaining() {
     const remainingBacks = Array.from(document.querySelectorAll('.card.back'));
     for (let el of remainingBacks) {
         const cardData = window[el.id];
-        cardData.up = true;
-        el.classList.remove('back');
-        el.classList.add(`rank-${cardData.type}`);
+        cardData.up = true; el.classList.remove('back'); el.classList.add(`rank-${cardData.type}`);
         el.innerHTML = `<div style="font-size:9px; color:#666;">${cardData.m}월</div><div>${cardData.name}</div>`;
         if (cardData.currM !== cardData.m) el.classList.add('mismatch');
         await new Promise(r => setTimeout(r, 50));
     }
-    const totalCorrect = document.querySelectorAll('.card:not(.back):not(.mismatch)').length;
-    document.getElementById('status').innerText = (totalCorrect === 48) ? "★ 운수대통! 모든 패를 맞췄습니다 ★" : "운세 확인이 종료되었습니다.";
+    document.getElementById('status').innerText = "신년 운세 확인이 완료되었습니다.";
 }
 
 function updateLog() {
@@ -158,9 +150,9 @@ function updateLog() {
     log.innerHTML = '';
     finishOrder.forEach((month, index) => {
         const entry = document.createElement('div');
-        entry.className = 'log-entry';
-        let daegil = (index === 0) ? '<span style="color:#ff3333; font-weight:bold; margin-left:5px;">[대길]</span>' : '';
-        entry.innerHTML = `<b>${index + 1}등 :</b> ${month}월 ${MONTH_NAMES[month]}${daegil}`;
+        entry.className = 'log-entry' + (index === 0 ? ' first' : '');
+        let title = (index === 0) ? `<b>[올해의 총운] ${month}월 ${MONTH_NAMES[month]}</b>` : `<b>${index + 1}등: ${month}월</b>`;
+        entry.innerHTML = `${title}<br>${FORTUNE_TEXT[month]}`;
         log.appendChild(entry);
     });
 }
