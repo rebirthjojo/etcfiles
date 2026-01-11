@@ -64,9 +64,9 @@ async def auto_load_and_generate(event):
         
         final_html = "<h3>✨ 분석 추천 조합 ✨</h3>"
         for i in range(5):
-            h = random.sample(hot, 2)
+            h = random.sample(hot, 3)
             rem_cold = [n for n in cold if n not in h]
-            c = random.sample(rem_cold, 2)
+            c = random.sample(rem_cold, 1)
             used = h + c
             rem_all = [n for n in range(1, 46) if n not in used]
             r = random.sample(rem_all, 2)
@@ -81,4 +81,5 @@ async def auto_load_and_generate(event):
         status_div.innerHTML = f"<b style='color:red;'>오류 발생: {str(e)}</b>"
 </script>
 </body>
+
 </html>
