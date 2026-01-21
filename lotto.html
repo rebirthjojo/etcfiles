@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로또 분석 시스템</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <style>
+        body { font-family: 'Apple SD Gothic Neo', sans-serif; text-align: center; background-color: #f0f2f5; padding: 40px; }
+        .container { max-width: 650px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .btn { padding: 15px 30px; font-size: 18px; cursor: pointer; background: #e74c3c; color: white; border: none; border-radius: 10px; margin-top: 20px; font-weight: bold; transition: 0.3s; }
+        .btn:hover { background: #c0392b; transform: translateY(-2px); }
+        .ball-container { margin-top: 15px; background: #fafafa; padding: 15px; border-radius: 15px; display: flex; justify-content: center; gap: 8px; }
+        .ball { display: inline-block; width: 42px; height: 42px; line-height: 42px; border-radius: 50%; color: white; font-weight: bold; font-size: 16px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+        .hot { background: radial-gradient(circle at 30% 30%, #ff5f6d, #ff3131); border: 1px solid #d32f2f; }
+        .mid { background: radial-gradient(circle at 30% 30%, #fbc531, #e1b12c); color: #2f3542; border: 1px solid #c29924; }
+        .cold { background: radial-gradient(circle at 30% 30%, #448aff, #2979ff); border: 1px solid #1c54b2; }
+        .legend { margin-top: 20px; font-size: 12px; color: #777; display: flex; justify-content: center; gap: 15px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        #status { margin-top: 15px; font-size: 14px; color: #e74c3c; font-weight: bold; }
+        #loading { display: block; color: #3498db; font-weight: bold; margin-bottom: 10px; }
+    </style>
+    <py-config>
+        packages = ["pandas", "openpyxl"]
+    </py-config>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔥 로또 핫넘버 집중 분석 🔥</h1>
+    <div id="loading">🐍 파이썬 환경 준비 중...</div>
+    <p>실측 데이터 반영: <b>핫넘버 4~5개 집중 배치</b> 및 랜덤 조합</p>
+    
+    <button id="generate-btn" class="btn" py-click="auto_load_and_generate">데이터 분석 및 번호 생성</button>
+    
+    <div id="status"></div>
+    <div id="result"></div>
+
+    <div class="legend">
+        <span><span class="dot" style="background:#ff3131"></span>핫넘버(1~20위)</span>
+        <span><span class="dot" style="background:#fbc531"></span>미들(21~35위)</span>
+        <span><span class="dot" style="background:#2979ff"></span>쿨넘버(36~45위)</span>
+    </div>
+</div>
+
+<script type="py">
+import pandas as pd
+import random
+import io
+from pyscript import document
+from js import fetch, Uint8Array
+
+document.querySelector("#loading").style.display = "none"
+
+async def auto_load_and_generate(event):
+    status_div = document.querySelector("#status")
+    result_div = document.querySelector("#result")
+    status_div.innerHTML = "⏳ 실측 경향성 분석 중..."
+    
+    try:
+        response = await fetch(f"./lotto_prob.xlsx?t={random.random()}")
+        if not response.ok:
+            raise Exception("lotto_prob.xlsx 파일을 찾을 수 없습니다.")
+            
+        array_buffer = await response.arrayBuffer()
+        file_bytes = Uint8Array.new(array_buffer).to_bytes()
+        
+        with io.BytesIO(file_bytes) as f:
+            df_prob = pd.read_excel(f, engine='openpyxl', sheet_name='확률')
+        
+        # 핫넘버(상위 20위)와 쿨넘버(하위 10위) 리스트업
+        hot_list = df_prob.nsmallest(20, '출현 순위')['번호'].tolist()
+        cold_list = df_prob.nlargest(10, '출현 순위')['번호'].tolist()
+        
+        final_html = "<h3>✨ 핫넘버 지배(비율 4↑) 반영 조합 ✨</h3>"
+        
+        for _ in range(5):
+            # 1. 실측 기반: 핫넘버를 4개 혹은 5개 추출 (가장 많이 나오는 비율)
+            h_count = random.choice([4, 5])
+            h_pick = random.sample(hot_list, h_count)
+            
+            # 2. 나머지는 '쿨'에 한정하지 않고 전체(1~45)에서 무작위 추출 (랜덤성 확보)
+            remaining_slots = 6 - h_count
+            available_pool = [n for n in range(1, 46) if n not in h_pick]
+            r_pick = random.sample(available_pool, remaining_slots)
+            
+            final_numbers = sorted(h_pick + r_pick)
+            
+            # 색상 클래스 부여
+            ball_html = ""
+            for n in final_numbers:
+                cls = "mid"
+                if n in hot_list: cls = "hot"
+                elif n in cold_list: cls = "cold"
+                ball_html += f'<span class="ball {cls}">{n}</span>'
+            
+            final_html += f"<div class='ball-container'>{ball_html}</div>"
+            
+        result_div.innerHTML = final_html
+        status_div.innerHTML = f"✅ 분석 완료! (핫넘버 집중 모드 적용)"
+        
+    except Exception as e:
+        status_div.innerHTML = f"<b style='color:red;'>오류: {str(e)}</b>"
+</script>
+
+</body>
+</html>
+
