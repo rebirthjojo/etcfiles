@@ -14,7 +14,7 @@
         .btn { padding: 15px 20px; font-size: 16px; cursor: pointer; color: white; border: none; border-radius: 12px; font-weight: bold; transition: 0.3s; flex: 1; min-width: 150px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .btn:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); opacity: 0.9; }
         
-        /* 버튼 컬러 전략 */
+        /* 전략별 버튼 색상 */
         .btn-hot { background: linear-gradient(135deg, #ff5f6d, #ff3131); }
         .btn-mid { background: linear-gradient(135deg, #fbc531, #e1b12c); color: #2f3542; }
         .btn-cold { background: linear-gradient(135deg, #448aff, #2979ff); }
@@ -22,7 +22,7 @@
         .ball-container { margin-top: 15px; background: #fafafa; padding: 15px; border-radius: 15px; display: flex; justify-content: center; gap: 8px; border: 1px solid #eee; }
         .ball { display: inline-block; width: 42px; height: 42px; line-height: 42px; border-radius: 50%; color: white; font-weight: bold; font-size: 16px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
         
-        /* 공 색상 정의 */
+        /* 공 색상 */
         .hot { background: radial-gradient(circle at 30% 30%, #ff5f6d, #ff3131); border: 1px solid #d32f2f; }
         .mid { background: radial-gradient(circle at 30% 30%, #fbc531, #e1b12c); color: #2f3542; border: 1px solid #c29924; }
         .cold { background: radial-gradient(circle at 30% 30%, #448aff, #2979ff); border: 1px solid #1c54b2; }
@@ -30,7 +30,7 @@
         .legend { margin-top: 25px; font-size: 13px; color: #666; display: flex; justify-content: center; gap: 20px; border-top: 1px solid #eee; padding-top: 15px; }
         .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
         
-        #status { margin-top: 20px; font-size: 15px; font-weight: bold; min-height: 24px; transition: 0.5s; }
+        #status { margin-top: 20px; font-size: 15px; font-weight: bold; min-height: 24px; }
         #loading { display: block; color: #3498db; font-weight: bold; margin-bottom: 10px; }
         h3 { color: #333; margin-top: 25px; }
     </style>
@@ -42,22 +42,22 @@
 
 <div class="container">
     <h1>🎯 로또 전략 분석 시스템 🎯</h1>
-    <div id="loading">🐍 분석 엔진 준비 중...</div>
-    <p>엑셀 실측 데이터 기반 맞춤형 전략</p>
+    <div id="loading">🐍 분석 엔진 준비 중 (최대 10초 소요)...</div>
+    <p>실측 데이터 기반: 버튼을 눌러 전략별 번호를 생성하세요.</p>
     
     <div class="btn-group">
-        <button id="btn-hot" class="btn btn-hot" py-click='lambda e: generate_by_mode("HOT")'>🔥 핫 강세</button>
-        <button id="btn-mid" class="btn btn-mid" py-click='lambda e: generate_by_mode("MID")'>⚖️ 미들 강세</button>
-        <button id="btn-cold" class="btn btn-cold" py-click='lambda e: generate_by_mode("COLD")'>❄️ 쿨 강세</button>
+        <button id="HOT" class="btn btn-hot" py-click="handle_click">🔥 핫 강세</button>
+        <button id="MID" class="btn btn-mid" py-click="handle_click">⚖️ 미들 강세</button>
+        <button id="COLD" class="btn btn-cold" py-click="handle_click">❄️ 쿨 강세</button>
     </div>
     
     <div id="status"></div>
     <div id="result"></div>
 
     <div class="legend">
-        <span><span class="dot" style="background:#ff3131"></span>핫(상위 20위)</span>
+        <span><span class="dot" style="background:#ff3131"></span>핫(1~20위)</span>
         <span><span class="dot" style="background:#fbc531"></span>미들(중간 15개)</span>
-        <span><span class="dot" style="background:#2979ff"></span>쿨(하위 10위)</span>
+        <span><span class="dot" style="background:#2979ff"></span>쿨(36~45위)</span>
     </div>
 </div>
 
@@ -68,22 +68,28 @@ import io
 from pyscript import document
 from js import fetch, Uint8Array
 
-# 준비 완료 후 로딩 메시지 숨김
+# 로딩 완료 시 메시지 제거
 document.querySelector("#loading").style.display = "none"
+
+async def handle_click(event):
+    """클릭된 버튼의 ID를 통해 모드를 결정하는 통합 핸들러"""
+    # PyScript의 이벤트 객체에서 타겟 ID 추출
+    mode = event.target.id
+    await generate_by_mode(mode)
 
 async def generate_by_mode(mode):
     status_div = document.querySelector("#status")
     result_div = document.querySelector("#result")
     
     status_msg = {
-        "HOT": "🔥 핫넘버 집중 배치 중...",
-        "MID": "⚖️ 미들구간(핫/쿨 제외) 집중 배치 중...",
-        "COLD": "❄️ 미출현 쿨넘버 역배치 중..."
+        "HOT": "🔥 핫넘버(최근 강세) 분석 중...",
+        "MID": "⚖️ 미들구간(허리층) 집중 분석 중...",
+        "COLD": "❄️ 쿨넘버(미출현) 역배치 중..."
     }
     status_div.innerHTML = f"<span style='color:#555'>{status_msg.get(mode)}</span>"
     
     try:
-        # 엑셀 파일 로드 (캐시 방지 쿼리스트링 추가)
+        # 엑셀 파일 로드 (캐시 방지 추가)
         response = await fetch(f"./lotto_prob.xlsx?t={random.random()}")
         if not response.ok:
             raise Exception("lotto_prob.xlsx 파일을 찾을 수 없습니다.")
@@ -94,45 +100,38 @@ async def generate_by_mode(mode):
         with io.BytesIO(file_bytes) as f:
             df_prob = pd.read_excel(f, engine='openpyxl', sheet_name='확률')
         
-        # 1. 구간별 리스트 정의
+        # 구간 정의
         hot_list = df_prob.nsmallest(20, '출현 순위')['번호'].tolist()
         cold_list = df_prob.nlargest(10, '출현 순위')['번호'].tolist()
-        # 핫과 쿨을 제외한 순수 미들 넘버 리스트
-        mid_list = [n for n in range(1, 46) if n not in hot_list and n not in cold_list]
+        mid_list = [n for n in range(1, 45 + 1) if n not in hot_list and n not in cold_list]
         
         all_numbers = list(range(1, 46))
 
         title_msg = {
             "HOT": "✨ 핫넘버(상위권) 집중 조합 ✨",
-            "MID": "✨ 미들넘버(허리층) 집중 조합 ✨",
+            "MID": "✨ 미들넘버(핫/쿨 제외) 집중 조합 ✨",
             "COLD": "✨ 쿨넘버(미출현) 집중 조합 ✨"
         }
         final_html = f"<h3>{title_msg.get(mode)}</h3>"
         
         for _ in range(5):
             if mode == "HOT":
-                # 핫넘버 4~5개 집중
                 count = random.choice([4, 5])
                 picks = random.sample(hot_list, count)
-            
             elif mode == "MID":
-                # 미들넘버 4~5개 집중 (사용자 요청 반영)
+                # 미들 넘버 4~5개 집중 배치
                 count = random.choice([4, 5])
                 picks = random.sample(mid_list, count)
-            
             elif mode == "COLD":
-                # 쿨넘버 3~4개 집중
                 count = random.choice([3, 4])
                 picks = random.sample(cold_list, count)
 
-            # 나머지 슬롯은 선택되지 않은 전체 번호에서 무작위 추출
-            remaining_slots = 6 - len(picks)
+            # 나머지 슬롯 무작위 채우기
             available_pool = [n for n in all_numbers if n not in picks]
-            remains = random.sample(available_pool, remaining_slots)
+            remains = random.sample(available_pool, 6 - len(picks))
             
             final_numbers = sorted(picks + remains)
             
-            # 볼 생성 (색상 클래스 구분)
             ball_html = ""
             for n in final_numbers:
                 cls = "mid"
@@ -143,10 +142,8 @@ async def generate_by_mode(mode):
             final_html += f"<div class='ball-container'>{ball_html}</div>"
             
         result_div.innerHTML = final_html
-        
-        # 상태 메시지 컬러링
         colors = {"HOT": "#e74c3c", "MID": "#e1b12c", "COLD": "#3498db"}
-        status_div.innerHTML = f"<span style='color:{colors.get(mode)}'>✅ {mode} 전략 분석 완료!</span>"
+        status_div.innerHTML = f"<span style='color:{colors.get(mode)}'>✅ {mode} 전략 생성 완료!</span>"
         
     except Exception as e:
         status_div.innerHTML = f"<b style='color:red;'>오류: {str(e)}</b>"
